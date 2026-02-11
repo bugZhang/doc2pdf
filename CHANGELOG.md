@@ -1,0 +1,79 @@
+# 更新日志
+
+## [1.0.1] - 2026-02-11
+
+### 🐛 Bug 修复
+
+**修复侧边栏链接抓取不完整的问题**
+
+- **问题**：某些网站（如 opencode.ai）只抓取到 1 个页面，而不是全部文档
+- **原因**：之前的逻辑在找到第一个匹配的选择器后就停止，导致只获取部分链接
+- **修复**：现在会尝试所有选择器，选择匹配链接数最多的结果
+
+**修复前**：
+```bash
+node src/index.js https://opencode.ai/docs
+# 结果: 发现 1 个文档链接，生成 279KB PDF
+```
+
+**修复后**：
+```bash
+node src/index.js https://opencode.ai/docs
+# 结果: 发现 35 个文档链接，生成 6.0MB PDF ✅
+```
+
+### 📝 代码变更
+
+修改文件：`src/parser.js`
+
+```javascript
+// 旧逻辑：找到第一个有链接的选择器就停止
+for (const selector of navSelectors) {
+  // ... 提取链接 ...
+  if (links.size > 0) {
+    break;  // ❌ 问题：可能丢失其他链接
+  }
+}
+
+// 新逻辑：尝试所有选择器，选择链接最多的
+for (const selector of navSelectors) {
+  // ... 提取链接 ...
+  if (currentLinks.size > maxCount) {
+    maxCount = currentLinks.size;
+    bestLinks = currentLinks;  // ✅ 保留最佳结果
+  }
+}
+```
+
+### ✅ 测试结果
+
+| 网站 | 修复前 | 修复后 |
+|------|--------|--------|
+| opencode.ai/docs | 1 页 (279KB) | 34 页 (6.0MB) ✅ |
+| example.com | 1 页 (52KB) | 1 页 (52KB) ✅ |
+| docs.github.com/en/copilot | 测试中 | 288 页 ✅ |
+
+### 🎯 受益场景
+
+此修复特别改善了以下类型网站的抓取：
+- 使用嵌套导航结构的网站
+- 使用多个 `nav` 元素的网站
+- 侧边栏导航不在第一个选择器的网站
+
+---
+
+## [1.0.0] - 2026-02-11
+
+### 🎉 初始版本
+
+- ✅ 智能爬虫：自动识别侧边栏导航
+- ✅ 内容提取：去除无关元素
+- ✅ PDF 生成：精美排版
+- ✅ CLI 工具：友好的命令行界面
+- ✅ 并发控制：可配置的并发数
+- ✅ 错误处理：容错机制
+
+### 🐛 已知问题修复
+
+- ✅ chalk@5.x ESM 兼容性 → 降级到 chalk@4
+- ✅ ora@9.x ESM 兼容性 → 降级到 ora@5
