@@ -1,6 +1,6 @@
 {
   "name": "doc2pdf",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "将文档型网站转换为 PDF 的命令行工具",
   "main": "src/index.js",
   "bin": {

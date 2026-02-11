@@ -17,17 +17,46 @@ class PDFGenerator {
     // 保存临时 HTML 文件（用于调试）
     const tempHTMLPath = outputPath.replace('.pdf', '_temp.html');
     await fs.writeFile(tempHTMLPath, html, 'utf-8');
-    logger.info(`临时 HTML 已保存: ${tempHTMLPath}`);
+    const htmlSizeMB = (html.length / 1024 / 1024).toFixed(2);
+    logger.info(`临时 HTML 已保存: ${tempHTMLPath} (${htmlSizeMB} MB)`);
 
-    // 生成 PDF
+    // 如果 HTML 太大，警告用户
+    if (html.length > 50 * 1024 * 1024) { // 50MB
+      logger.warning(`HTML 文件较大 (${htmlSizeMB} MB)，PDF 生成可能需要较长时间...`);
+    }
+
+    // 生成 PDF - 增加内存和超时配置
     const browser = await puppeteer.launch({
       headless: 'new',
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--no-first-run',
+        '--no-zygote',
+        '--disable-gpu',
+        '--single-process', // 单进程模式，减少内存占用
+        '--max-old-space-size=4096' // 增加 Node.js 内存限制
+      ]
     });
 
     try {
       const page = await browser.newPage();
-      await page.setContent(html, { waitUntil: 'networkidle2' });
+      
+      // 设置页面超时和内存限制
+      page.setDefaultNavigationTimeout(120000); // 2分钟超时
+      page.setDefaultTimeout(120000);
+      
+      logger.info('正在加载 HTML 内容...');
+      
+      // 使用更宽松的等待条件
+      await page.setContent(html, { 
+        waitUntil: 'domcontentloaded', // 改为 domcontentloaded，不等待所有资源
+        timeout: 120000 
+      });
+
+      logger.info('正在渲染 PDF...');
 
       // 确保输出目录存在
       const outputDir = path.dirname(outputPath);
@@ -35,7 +64,8 @@ class PDFGenerator {
 
       await page.pdf({
         path: outputPath,
-        ...this.config.pdfOptions
+        ...this.config.pdfOptions,
+        timeout: 180000 // 3分钟 PDF 生成超时
       });
 
       logger.success(`PDF 已生成: ${outputPath}`);

@@ -23,5 +23,10 @@ echo "📄 URL: $URL"
 echo "💾 输出: $OUTPUT"
 echo ""
 
+# 自动设置较大的内存限制以处理大型文档
+export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=4096}"
+echo "ℹ️  内存限制: 4GB (可通过 NODE_OPTIONS 环境变量自定义)"
+echo ""
+
 # 运行程序
 node src/index.js "$URL" -o "$OUTPUT"

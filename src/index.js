@@ -5,6 +5,7 @@ const ora = require('ora');
 const path = require('path');
 const Crawler = require('./crawler');
 const PDFGenerator = require('./pdfGenerator');
+const PDFGeneratorLarge = require('./pdfGeneratorLarge');
 const config = require('./utils/config');
 const logger = require('./utils/logger');
 
@@ -13,7 +14,7 @@ const program = new Command();
 program
   .name('doc2pdf')
   .description('将文档型网站转换为 PDF')
-  .version('1.0.1')
+  .version('1.0.2')
   .argument('<url>', '文档网站的起始 URL')
   .option('-o, --output <path>', '输出 PDF 文件路径', './output/docs.pdf')
   .option('-s, --selector <selector>', '自定义导航选择器')
@@ -66,7 +67,16 @@ program
 
       // 生成 PDF
       const pdfSpinner = ora('正在生成 PDF...').start();
-      const generator = new PDFGenerator(cfg);
+      
+      // 智能选择生成器：大文档使用分块生成
+      const estimatedSize = pages.length * 0.3; // MB
+      const generator = estimatedSize > 100 
+        ? new PDFGeneratorLarge(cfg) 
+        : new PDFGenerator(cfg);
+      
+      if (estimatedSize > 100) {
+        logger.warning(`检测到大型文档 (${pages.length} 页)，将使用优化模式...`);
+      }
       
       try {
         const outputPath = path.resolve(options.output);
