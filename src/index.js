@@ -14,7 +14,7 @@ const program = new Command();
 program
   .name('doc2pdf')
   .description('将文档型网站转换为 PDF')
-  .version('1.0.2')
+  .version('1.0.5')
   .argument('<url>', '文档网站的起始 URL')
   .option('-o, --output <path>', '输出 PDF 文件路径', './output/docs.pdf')
   .option('-s, --selector <selector>', '自定义导航选择器')

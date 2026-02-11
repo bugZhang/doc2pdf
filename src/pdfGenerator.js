@@ -1,11 +1,34 @@
 const puppeteer = require('puppeteer');
 const fs = require('fs').promises;
 const path = require('path');
+const { marked } = require('marked');
 const logger = require('./utils/logger');
 
 class PDFGenerator {
   constructor(config) {
     this.config = config;
+    
+    // 配置 marked 选项
+    marked.setOptions({
+      gfm: true,  // GitHub Flavored Markdown
+      breaks: true,  // 支持换行
+      headerIds: true,
+      mangle: false,
+      smartLists: true,
+      smartypants: false
+    });
+  }
+
+  /**
+   * 将 Markdown 转换为 HTML
+   */
+  markdownToHtml(markdown) {
+    try {
+      return marked.parse(markdown);
+    } catch (error) {
+      logger.warning('Markdown 解析失败，使用原始内容');
+      return markdown;
+    }
   }
 
   async generate(pages, outputPath) {
@@ -90,14 +113,20 @@ class PDFGenerator {
 
   createHTML(pages) {
     const pageHTMLs = pages.map((page, index) => {
+      // 如果内容是 Markdown 格式，先转换为 HTML
+      let content = page.content;
+      if (page.format === 'markdown') {
+        content = this.markdownToHtml(content);
+      }
+      
       return `
         <div class="page-container">
           <div class="page-header">
-            <h1>${this.escapeHtml(page.title)}</h1>
+            <h1 class="page-title">${this.escapeHtml(page.title)}</h1>
             <p class="page-url">${this.escapeHtml(page.url)}</p>
           </div>
-          <div class="page-content">
-            ${page.content}
+          <div class="page-content markdown-body">
+            ${content}
           </div>
           ${index < pages.length - 1 ? '<div class="page-break"></div>' : ''}
         </div>
@@ -132,21 +161,35 @@ class PDFGenerator {
     }
 
     .page-header {
-      border-bottom: 2px solid #e1e4e8;
+      border-bottom: 3px solid #0366d6;
       padding-bottom: 16px;
-      margin-bottom: 24px;
+      margin-bottom: 32px;
+      background: linear-gradient(to right, #f6f8fa, #ffffff);
+      padding: 20px;
+      border-radius: 6px;
     }
 
-    .page-header h1 {
-      font-size: 28px;
+    .page-header .page-title {
+      font-size: 32px;
       margin-bottom: 8px;
-      color: #1a1a1a;
+      color: #0366d6;
+      font-weight: 700;
     }
 
     .page-url {
-      font-size: 12px;
-      color: #666;
-      font-family: monospace;
+      font-size: 11px;
+      color: #586069;
+      font-family: "SF Mono", Monaco, monospace;
+      background: #f6f8fa;
+      padding: 4px 8px;
+      border-radius: 3px;
+      display: inline-block;
+    }
+
+    /* Markdown 内容容器 */
+    .markdown-body {
+      font-size: 15px;
+      line-height: 1.7;
     }
 
     .page-content {
@@ -155,113 +198,260 @@ class PDFGenerator {
 
     .page-break {
       page-break-after: always;
-      margin: 40px 0;
-      border-top: 2px dashed #ccc;
-      padding-top: 20px;
+      margin: 60px 0;
+      border-top: 3px solid #e1e4e8;
+      padding-top: 30px;
     }
 
-    /* 标题样式 */
-    h1, h2, h3, h4, h5, h6 {
-      margin-top: 24px;
-      margin-bottom: 16px;
+    /* 标题样式 - Markdown 风格 */
+    .markdown-body h1,
+    .markdown-body h2,
+    .markdown-body h3,
+    .markdown-body h4,
+    .markdown-body h5,
+    .markdown-body h6 {
+      margin-top: 28px;
+      margin-bottom: 18px;
       font-weight: 600;
       line-height: 1.25;
+      color: #24292e;
     }
 
-    h1 { font-size: 24px; border-bottom: 1px solid #eaecef; padding-bottom: 8px; }
-    h2 { font-size: 20px; border-bottom: 1px solid #eaecef; padding-bottom: 6px; }
-    h3 { font-size: 18px; }
-    h4 { font-size: 16px; }
-    h5 { font-size: 14px; }
-    h6 { font-size: 14px; color: #666; }
+    .markdown-body h1:first-child,
+    .markdown-body h2:first-child,
+    .markdown-body h3:first-child {
+      margin-top: 0;
+    }
+
+    .markdown-body h1 { 
+      font-size: 28px; 
+      border-bottom: 2px solid #eaecef; 
+      padding-bottom: 10px;
+      margin-bottom: 20px;
+    }
+    
+    .markdown-body h2 { 
+      font-size: 24px; 
+      border-bottom: 1px solid #eaecef; 
+      padding-bottom: 8px;
+      margin-top: 32px;
+    }
+    
+    .markdown-body h3 { 
+      font-size: 20px;
+      margin-top: 24px;
+    }
+    
+    .markdown-body h4 { font-size: 17px; }
+    .markdown-body h5 { font-size: 15px; }
+    .markdown-body h6 { font-size: 14px; color: #6a737d; }
 
     /* 段落和文本 */
-    p {
-      margin-bottom: 16px;
+    .markdown-body p {
+      margin-bottom: 18px;
+      line-height: 1.7;
     }
 
-    /* 列表 */
-    ul, ol {
-      margin-bottom: 16px;
-      padding-left: 32px;
+    /* 列表样式 - 更清晰的结构 */
+    .markdown-body ul,
+    .markdown-body ol {
+      margin-bottom: 18px;
+      padding-left: 28px;
     }
 
-    li {
-      margin-bottom: 4px;
+    .markdown-body li {
+      margin-bottom: 6px;
+      line-height: 1.6;
     }
 
-    /* 代码块 */
-    code {
-      background-color: #f6f8fa;
+    .markdown-body li > p {
+      margin-bottom: 8px;
+    }
+
+    .markdown-body ul ul,
+    .markdown-body ol ol,
+    .markdown-body ul ol,
+    .markdown-body ol ul {
+      margin-top: 6px;
+      margin-bottom: 6px;
+    }
+
+    /* 代码样式 - GitHub 风格 */
+    .markdown-body code {
+      background-color: rgba(175, 184, 193, 0.2);
       border-radius: 3px;
-      padding: 2px 6px;
-      font-family: "SF Mono", Monaco, "Courier New", monospace;
+      padding: 3px 6px;
+      font-family: "SF Mono", Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
       font-size: 85%;
-      color: #e83e8c;
+      color: #24292e;
     }
 
-    pre {
+    /* 代码块 - GitHub 风格 */
+    .markdown-body pre {
       background-color: #f6f8fa;
+      border: 1px solid #e1e4e8;
       border-radius: 6px;
-      padding: 16px;
+      padding: 18px;
       overflow-x: auto;
-      margin-bottom: 16px;
-      line-height: 1.45;
-    }
-
-    pre code {
-      background-color: transparent;
-      padding: 0;
-      color: #333;
-      font-size: 12px;
-    }
-
-    /* 表格 */
-    table {
-      border-collapse: collapse;
-      width: 100%;
-      margin-bottom: 16px;
+      margin-bottom: 20px;
+      line-height: 1.5;
       font-size: 13px;
     }
 
-    th, td {
-      border: 1px solid #dfe2e5;
-      padding: 8px 12px;
+    .markdown-body pre code {
+      background-color: transparent;
+      padding: 0;
+      color: #24292e;
+      font-size: 13px;
+      border-radius: 0;
+    }
+
+    /* 表格 - Markdown 风格 */
+    .markdown-body table {
+      border-collapse: collapse;
+      width: 100%;
+      margin-bottom: 20px;
+      font-size: 14px;
+      border: 1px solid #d0d7de;
+    }
+
+    .markdown-body th,
+    .markdown-body td {
+      border: 1px solid #d0d7de;
+      padding: 10px 13px;
       text-align: left;
     }
 
-    th {
+    .markdown-body th {
       background-color: #f6f8fa;
       font-weight: 600;
+      color: #24292e;
     }
 
-    tr:nth-child(even) {
-      background-color: #fafbfc;
+    .markdown-body tr:nth-child(2n) {
+      background-color: #f6f8fa;
     }
 
     /* 链接 */
-    a {
+    .markdown-body a {
       color: #0366d6;
       text-decoration: none;
+      font-weight: 500;
     }
 
-    a:hover {
+    .markdown-body a:hover {
       text-decoration: underline;
     }
 
-    /* 引用 */
-    blockquote {
-      border-left: 4px solid #dfe2e5;
-      padding-left: 16px;
-      margin-bottom: 16px;
-      color: #666;
+    /* 引用块 - Markdown 风格 */
+    .markdown-body blockquote {
+      border-left: 4px solid #0366d6;
+      padding-left: 20px;
+      margin: 20px 0;
+      color: #57606a;
+      font-style: italic;
+      background: #f6f8fa;
+      padding: 12px 20px;
+      border-radius: 0 6px 6px 0;
     }
 
-    /* 图片 */
+    .markdown-body blockquote > :first-child {
+      margin-top: 0;
+    }
+
+    .markdown-body blockquote > :last-child {
+      margin-bottom: 0;
+    }
+
+    /* 水平分隔线 */
+    .markdown-body hr {
+      height: 3px;
+      padding: 0;
+      margin: 28px 0;
+      background-color: #e1e4e8;
+      border: 0;
+    }
+
+    /* 图片基础样式 */
     img {
       max-width: 100%;
       height: auto;
-      margin: 16px 0;
+      display: block;
+      margin: 16px auto;
+    }
+    
+    /* 内容图片（正文图片）- 确保清晰可见 */
+    img:not([width]):not([height]):not([src*="icon"]):not([src*="logo"]):not([src^="data:image/svg"]) {
+      min-width: 300px;
+      max-width: 85%;
+      display: block;
+      margin: 20px auto;
+    }
+    
+    /* 独立图片段落 - 更大展示 */
+    p > img:only-child {
+      min-width: 400px !important;
+      max-width: 90% !important;
+      display: block !important;
+      margin: 24px auto !important;
+    }
+    
+    /* SVG 小图标 */
+    img[src^="data:image/svg"] {
+      max-width: 32px !important;
+      max-height: 32px !important;
+      min-width: auto !important;
+      display: inline-block !important;
+      vertical-align: middle;
+      margin: 0 4px !important;
+    }
+    
+    /* 带宽高属性的小图标 */
+    img[width][width*="16"],
+    img[width][width*="20"],
+    img[width][width*="24"],
+    img[width][width*="32"],
+    img[height][height*="16"],
+    img[height][height*="20"],
+    img[height][height*="24"],
+    img[height][height*="32"] {
+      max-width: 32px !important;
+      max-height: 32px !important;
+      min-width: auto !important;
+      display: inline-block !important;
+      vertical-align: middle;
+      margin: 0 4px !important;
+      width: auto !important;
+      height: auto !important;
+    }
+    
+    /* 名称中含有 icon/logo 的小图标 */
+    img[src*="icon"],
+    img[src*="logo"],
+    img[class*="icon"],
+    img[class*="logo"] {
+      max-width: 40px !important;
+      max-height: 40px !important;
+      min-width: auto !important;
+      display: inline-block !important;
+      vertical-align: middle;
+      margin: 0 6px !important;
+    }
+    
+    /* 标题和列表中的小图标 */
+    h1 img[width],
+    h2 img[width],
+    h3 img[width],
+    h4 img[width],
+    h5 img[width],
+    h6 img[width],
+    li img[width] {
+      max-width: 28px !important;
+      max-height: 28px !important;
+      min-width: auto !important;
+      display: inline-block !important;
+      vertical-align: middle;
+      margin: 0 4px !important;
     }
 
     /* 水平线 */

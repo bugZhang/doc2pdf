@@ -112,12 +112,15 @@ class Crawler {
       const html = await page.content();
       const title = this.parser.extractTitle(html);
       const content = this.parser.extractContent(html, this.config.contentSelectors);
-      const cleanedContent = this.parser.cleanContent(content);
+      
+      // 转换为 Markdown
+      const markdown = this.parser.convertToMarkdown(content);
 
       this.pages.push({
         url,
         title,
-        content: cleanedContent
+        content: markdown,
+        format: 'markdown'  // 标记内容格式
       });
 
       logger.success(`完成: ${title}`);

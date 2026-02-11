@@ -6,13 +6,18 @@ class Config {
     this.defaults = {
       navSelectors: [
         '.sidebar nav a',
+        '.sidebar a',
+        '[class*="sidebar"] a',
         '.docs-sidebar a',
         'aside nav a',
+        'aside a',
         '[role="navigation"] a',
         '.toc a',
         '.menu a',
         'nav a',
-        '.nav-links a'
+        '.nav-links a',
+        '[class*="menu"] a',
+        '[class*="nav"] a'
       ],
       contentSelectors: [
         'main',

@@ -1,6 +1,6 @@
 {
   "name": "doc2pdf",
-  "version": "1.0.2",
+  "version": "1.0.5",
   "description": "将文档型网站转换为 PDF 的命令行工具",
   "main": "src/index.js",
   "bin": {
@@ -25,7 +25,9 @@
     "chalk": "^4.1.2",
     "cheerio": "^1.2.0",
     "commander": "^14.0.3",
+    "marked": "^17.0.1",
     "ora": "^5.4.1",
-    "puppeteer": "^24.37.2"
+    "puppeteer": "^24.37.2",
+    "turndown": "^7.2.2"
   }
 }
